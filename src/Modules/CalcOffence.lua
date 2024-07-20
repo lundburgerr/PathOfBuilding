@@ -3597,12 +3597,13 @@ function calcs.offence(env, actor, activeSkill)
 			output.KnockbackChanceOnCrit = skillModList:Sum("BASE", cfg, "EnemyKnockbackChance")
 		end
 		cfg.skillCond["CriticalStrike"] = false
-		if not skillFlags.attack or skillModList:Flag(cfg, "CannotBleed") then
+		if not skillFlags.attack or skillModList:Flag(cfg, "CannotBleed")
+		or skillModList:Flag(cfg, "HitsCantBleed") then
 			output.BleedChanceOnHit = 0
 		else
 			output.BleedChanceOnHit = m_min(100, skillModList:Sum("BASE", cfg, "BleedChance") + enemyDB:Sum("BASE", nil, "SelfBleedChance"))
 		end
-		if not skillFlags.hit or skillModList:Flag(cfg, "CannotPoison") then
+		if not skillFlags.hit or skillModList:Flag(cfg, "CannotPoison") or skillModList:Flag(cfg, "HitsCantPoison") then
 			output.PoisonChanceOnHit = 0
 			output.ChaosPoisonChance = 0
 		else
@@ -3610,12 +3611,19 @@ function calcs.offence(env, actor, activeSkill)
 			output.ChaosPoisonChance = m_min(100, skillModList:Sum("BASE", cfg, "ChaosPoisonChance"))
 		end
 		for _, ailment in ipairs(elementalAilmentTypeList) do
-			local chance = skillModList:Sum("BASE", cfg, "Enemy"..ailment.."Chance") + enemyDB:Sum("BASE", nil, "Self"..ailment.."Chance")
-			if ailment == "Chill" then
-				chance = 100
+			local chance = 0
+			if not skillModList:Flag(cfg, "HitsCant"..ailment) then
+				chance = skillModList:Sum("BASE", cfg, "Enemy"..ailment.."Chance") + enemyDB:Sum("BASE", nil, "Self"..ailment.."Chance")
+				if ailment == "Chill" then
+					chance = 100
+				end
 			end
 			if skillFlags.hit and not skillModList:Flag(cfg, "Cannot"..ailment) then
-				output[ailment.."ChanceOnHit"] = m_min(100, chance)
+				if not skillModList:Flag(cfg, "HitsCant"..ailment) then
+					output[ailment.."ChanceOnHit"] = m_min(100, chance)
+				else
+					output[ailment.."ChanceOnHit"] = 0
+				end
 				if skillModList:Flag(cfg, "CritsDontAlways"..ailment) -- e.g. Painseeker
 				or (ailmentData[ailment] and ailmentData[ailment].alt and not skillModList:Flag(cfg, "CritAlwaysAltAilments")) then -- e.g. Secrets of Suffering
 					output[ailment.."ChanceOnCrit"] = output[ailment.."ChanceOnHit"]
